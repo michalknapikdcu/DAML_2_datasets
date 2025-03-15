@@ -3,7 +3,7 @@
 import sys
 import os
 
-def sanitize_data(voc_class_files, voc_annotation_files, voc_jpeg_files, voc_classes):
+def sanitize_data_sources(voc_class_files, voc_annotation_files, voc_jpeg_files, voc_classes):
 
     data_dirs = [(voc_class_files, '.txt class'), (voc_annotation_files, 'annotations'), \
                  (voc_jpeg_files, 'images')]
@@ -22,8 +22,6 @@ def sanitize_data(voc_class_files, voc_annotation_files, voc_jpeg_files, voc_cla
             print(f'error: cannot find {voc_class} file under {voc_class_file}')
             sys.exit(1)
 
-
-
 if __name__ == '__main__':
 
     if len(sys.argv) < 4:
@@ -38,11 +36,11 @@ if __name__ == '__main__':
     voc_annotation_files = voc_root_dir + '/VOCdevkit/VOC2012/Annotations/'
     voc_jpeg_files = voc_root_dir + '/VOCdevkit/VOC2012/JPEGImages/'
 
-    print('*'*65)
+    print('**')
     print(f'** Collecting {img_number} images of the following classes: {voc_classes}')
     print(f'** assuming that VOC2012 directory is here: {voc_root_dir}')
-    print('*'*65)
+    print('**')
 
     # check if directories with VOC2012 exists and contain requested classes
-    sanitize_data(voc_class_files, voc_annotation_files, voc_jpeg_files, voc_classes)
+    sanitize_data_sources(voc_class_files, voc_annotation_files, voc_jpeg_files, voc_classes)
 
