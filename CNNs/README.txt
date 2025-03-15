@@ -4,13 +4,13 @@ The images collected here originate from The PASCAL VOC database.
 The project's website is here: http://host.robots.ox.ac.uk/pascal/VOC/
 Selected images have been copied from the project's repository together
 with annotations, archived, and pushed to Github in order to fulfill
-assignment's requirements.
+the assignment's requirements.
 
 ** On image annotations
 
 PASCAL VOC database provides for each image an .xml file that contains 
 various annotations. The structure of these is rather self-explanatory,
-moreove, within this assignment we're interested only in the following 
+moreover, within this assignment we're interested only in the following 
 parts of the <object> sections:
 
 <object>
@@ -31,17 +31,18 @@ parts of the <object> sections:
 
 The original database contains .txt files that split files into classes
 and train/validate sets. For instance, the 'aeroplane' class consists of 
-images that contain aeroplanes. There are three files provided:
+images that contain aeroplanes. There are three files provided for 
+'aeroplane' class:
 
 - aeroplane_train.txt: images selected for training
 - aeroplane_val.txt: images selected for validation 
 - aeroplane_trainval.txt: the union of the above
 
-Moreover, entries in these .txt files are further labeled where -1,0,1 
-means that the given object (here an aeroplane) is respectively: 
-not present, present but possibly hard to detect, present. For instance
-the following means that only 2008_005796.jpg contains a picture of 
-easily recognizable airplane: 
+Entries in these files are further labeled where -1,0,1 means that the 
+given object (here an aeroplane) is respectively: not present, present 
+but possibly hard to detect, present. For instance the following means 
+that only 2008_005796.jpg contains a picture of easily recognizable 
+airplane: 
 
 file: aeroplane_trainval.txt
 ...
