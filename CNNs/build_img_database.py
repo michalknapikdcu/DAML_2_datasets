@@ -41,12 +41,12 @@ def collect_dir_for_class(voc_class_dir, voc_annotation_dir, voc_jpeg_dir,\
     path_to_file = voc_class_dir + class_name + '_trainval.txt'
     with open(path_to_file, 'r') as f:
         class_file_names = {sline[0] for line in f.readlines() \
-                      if (sline := line.strip().split()) and len(sline) == 2 and sline[1] == '1'}
+                      if (sline := line.strip().split()) and len(sline) == 2 \
+                        and sline[1] == '1'}
 
     # now, collect from these class file names only those whose annotations
     # show that they describe a single object only 
     for img_file in class_file_names:
-        img_file_path = voc_jpeg_dir + img_file + '.jpg'
         annotation_file_path = voc_annotation_dir + img_file + '.xml' 
 
         # parse the .xml and check requirements
@@ -72,14 +72,16 @@ def collect_dir_for_class(voc_class_dir, voc_annotation_dir, voc_jpeg_dir,\
 
             # read the bounding box details
             bbox_fields = ['xmin', 'ymin', 'xmax', 'ymax']
-            bounding_box_pos = {field:int(bounding_box.find(field).text) for field in bbox_fields}
+            bounding_box_pos = {field:int(bounding_box.find(field).text) \
+                                for field in bbox_fields}
 
-            file_name_to_bounding_box_dict[img_file_path] = bounding_box_pos
+            file_name_to_bounding_box_dict[img_file + '.jpg'] = bounding_box_pos
 
     # if requested, limit the number of images (sampling without replacement)
     if no_imgs is not None and len(file_name_to_bounding_box_dict) > no_imgs:
         random_img_keys = random.sample(list(file_name_to_bounding_box_dict.keys()), no_imgs)
-        file_name_to_bounding_box_dict = {key:file_name_to_bounding_box_dict[key] for key in random_img_keys}
+        file_name_to_bounding_box_dict = {key:file_name_to_bounding_box_dict[key] \
+                                          for key in random_img_keys}
 
     return file_name_to_bounding_box_dict
 
