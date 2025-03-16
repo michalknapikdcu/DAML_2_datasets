@@ -2,7 +2,9 @@
 
 import sys
 import os
+import shutil
 import random
+import json
 import xml.etree.ElementTree as eltree 
 
 # This function check if class, annotation, and jpeg files are reachable.
@@ -85,6 +87,33 @@ def collect_dir_for_class(voc_class_dir, voc_annotation_dir, voc_jpeg_dir,\
 
     return file_name_to_bounding_box_dict
 
+# This function will copy all images from class_to_class_image_dict to target_dir and save
+# class_to_class_image_dict as .json metadata about the files (with image paths transformed to 
+# target_dir/image_filename.jpg).
+def copy_selected_images_and_save_metadata(class_to_class_image_dict, voc_jpeg_dir, target_dir):
+
+    # make target_dir and clean it if exists
+    try:
+        os.makedirs(target_dir)
+    except:
+        shutil.rmtree(target_dir)
+        os.makedirs(target_dir)
+
+    # copy files
+    for class_name,class_image_dict in class_to_class_image_dict.items():
+        print(f'-- copying files from {class_name} to {target_dir},', end=' ')
+        for image_path in class_image_dict.keys():
+            old_path = voc_jpeg_dir + '/' + image_path
+            new_path = target_dir + '/' + image_path
+            shutil.copyfile(old_path, new_path)
+        print(f'done')
+
+    # save class_to_class_image_dict as .json file
+    metadata_filename = 'metadata.json'
+    with open(metadata_filename, 'w') as jsonf:
+        json.dump(class_to_class_image_dict, jsonf)
+        print(f'-- saved images metadata (class to filenames to bounding boxes) as {metadata_filename}')
+
 if __name__ == '__main__':
 
     if len(sys.argv) < 4:
@@ -107,11 +136,21 @@ if __name__ == '__main__':
     # check if directories with VOC2012 exists and contain requested classes
     sanitize_data_sources(voc_class_dir, voc_annotation_dir, voc_jpeg_dir, voc_classes)
 
+    # this dict will map class name to a dict that assigns image files to bounding boxes 
+    class_to_class_image_dict = {}  
+
     # collect dictionaries from per class file paths to bounding boxes
     no_images_per_class = img_number//len(voc_classes)
     for curr_class in voc_classes:
-        print(f'-- collecting image data for class {curr_class}')
+        print(f'-- collecting image data for class {curr_class},', end=' ')
         class_images = collect_dir_for_class(voc_class_dir, voc_annotation_dir, voc_jpeg_dir, \
                                              curr_class, no_images_per_class)
-        print(f'-- found {len(class_images)} images that have a single object and bounding box')
+        print(f'found {len(class_images)} images that have a single object and bounding box')
 
+        class_to_class_image_dict[curr_class] = class_images
+
+    # copy all the images selected in the previous step, together with .json metadata
+    # to 'images' directory, for further processing
+    copy_selected_images_and_save_metadata(class_to_class_image_dict, voc_jpeg_dir, 'images')
+
+    print('** all done')
