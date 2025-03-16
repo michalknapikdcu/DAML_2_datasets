@@ -83,10 +83,7 @@ original .xml annotations:
 ** The script's usage
 
 Assuming that we wish to obtain 2000 images selected from classes 
-aeroplane, bicycle, bus, cow, cat we only need to run:
+aeroplane person dog cat bird we only need to run:
 
-./build_img_database.py [path to unpacked VOCdevkit] 2000 aeroplane bicycle bus cow cat 
-
-
-
+./build_img_database.py [path to unpacked VOCdevkit] 2000 aeroplane person dog cat bird
 
