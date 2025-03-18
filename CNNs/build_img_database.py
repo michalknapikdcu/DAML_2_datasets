@@ -31,13 +31,14 @@ def sanitize_data_sources(voc_class_dir, voc_annotation_dir, voc_jpeg_dir, voc_c
 # - uses (sanitized) voc_* parameters to reach files from VOC 2012 dataset
 # - visits .txt class file of class class_name and collects image file names s.t.
 #   each image contains a single object with a bounding box
-# - it then returns a dict with details about the class and files
+# - it then returns a list with dicts that contain details about images (filename, 
+#   class, bounding box)
 # - (if no_imgs is not None, then it tries to return a draw of no_imgs from the dict)
 def collect_dir_for_class(voc_class_dir, voc_annotation_dir, voc_jpeg_dir,\
                             class_name, no_imgs = None):
 
-    file_name_to_bounding_box_dict = {}
-
+    class_annotations = []
+ 
     # read class spec. file and collect the names of image files labeled with '1' 
     # (these contain easily recognizable objects of the class)
     path_to_file = voc_class_dir + class_name + '_trainval.txt'
@@ -66,6 +67,8 @@ def collect_dir_for_class(voc_class_dir, voc_annotation_dir, voc_jpeg_dir,\
             if object_name != class_name:
                 continue
 
+            img_description_dict = {'file': img_file + '.jpg', 'class': class_name}
+
             # requirement: there is only one bounding box
             bounding_box = img_object.findall('./bndbox') 
             if len(objects) != 1:
@@ -77,20 +80,18 @@ def collect_dir_for_class(voc_class_dir, voc_annotation_dir, voc_jpeg_dir,\
             bounding_box_pos = {field:int(bounding_box.find(field).text) \
                                 for field in bbox_fields}
 
-            file_name_to_bounding_box_dict[img_file + '.jpg'] = bounding_box_pos
+            img_description_dict.update(bounding_box_pos)
+            class_annotations.append(img_description_dict)
 
     # if requested, limit the number of images (sampling without replacement)
-    if no_imgs is not None and len(file_name_to_bounding_box_dict) > no_imgs:
-        random_img_keys = random.sample(list(file_name_to_bounding_box_dict.keys()), no_imgs)
-        file_name_to_bounding_box_dict = {key:file_name_to_bounding_box_dict[key] \
-                                          for key in random_img_keys}
+    if no_imgs is not None and len(class_annotations) > no_imgs:
+        class_annotations = random.sample(class_annotations, no_imgs)
 
-    return file_name_to_bounding_box_dict
+    return class_annotations
 
-# This function will copy all images from class_to_class_image_dict to target_dir and save
-# class_to_class_image_dict as .json metadata about the files (with image paths transformed to 
-# target_dir/image_filename.jpg).
-def copy_selected_images_and_save_metadata(class_to_class_image_dict, voc_jpeg_dir, target_dir):
+# This function will copy all images from class_annotations to target_dir and save
+# class_annotations as .json metadata about the files
+def copy_selected_images_and_save_metadata(class_annotations, voc_jpeg_dir, target_dir):
 
     # make target_dir and clean it if exists
     try:
@@ -98,20 +99,21 @@ def copy_selected_images_and_save_metadata(class_to_class_image_dict, voc_jpeg_d
     except:
         shutil.rmtree(target_dir)
         os.makedirs(target_dir)
+    
+    copy_ctr = 0
+    # copy files from the original dataset to the new one
+    for image_details in class_annotations:
+        image_file = image_details['file']
+        old_path = voc_jpeg_dir + '/' + image_file 
+        new_path = target_dir + '/' + image_file 
+        shutil.copyfile(old_path, new_path)
+        copy_ctr += 1
 
-    # copy files
-    for class_name,class_image_dict in class_to_class_image_dict.items():
-        print(f'-- copying files from {class_name} to {target_dir},', end=' ')
-        for image_path in class_image_dict.keys():
-            old_path = voc_jpeg_dir + '/' + image_path
-            new_path = target_dir + '/' + image_path
-            shutil.copyfile(old_path, new_path)
-        print(f'done')
-
-    # save class_to_class_image_dict as .json file
+    print(f'-- {copy_ctr} files copied')
+    # save class_annotations as .json file
     metadata_filename = 'metadata.json'
     with open(metadata_filename, 'w') as jsonf:
-        json.dump(class_to_class_image_dict, jsonf)
+        json.dump(class_annotations, jsonf)
         print(f'-- saved images metadata (class to filenames to bounding boxes) as {metadata_filename}')
 
 if __name__ == '__main__':
@@ -137,20 +139,21 @@ if __name__ == '__main__':
     sanitize_data_sources(voc_class_dir, voc_annotation_dir, voc_jpeg_dir, voc_classes)
 
     # this dict will map class name to a dict that assigns image files to bounding boxes 
-    class_to_class_image_dict = {}  
+    class_annotations = {}  
 
     # collect dictionaries from per class file paths to bounding boxes
     no_images_per_class = img_number//len(voc_classes)
+    class_annotations = []
     for curr_class in voc_classes:
         print(f'-- collecting image data for class {curr_class},', end=' ')
         class_images = collect_dir_for_class(voc_class_dir, voc_annotation_dir, voc_jpeg_dir, \
                                              curr_class, no_images_per_class)
         print(f'found {len(class_images)} images that have a single object and bounding box')
 
-        class_to_class_image_dict[curr_class] = class_images
+        class_annotations.extend(class_images)
 
     # copy all the images selected in the previous step, together with .json metadata
     # to 'images' directory, for further processing
-    copy_selected_images_and_save_metadata(class_to_class_image_dict, voc_jpeg_dir, 'images')
+    copy_selected_images_and_save_metadata(class_annotations, voc_jpeg_dir, 'images')
 
     print('** all done')

@@ -98,11 +98,7 @@ The output is as follows:
 -- collecting image data for class dog, found 400 images that have a single object and bounding box
 -- collecting image data for class cat, found 400 images that have a single object and bounding box
 -- collecting image data for class bird, found 400 images that have a single object and bounding box
--- copying files from aeroplane to images, done
--- copying files from person to images, done
--- copying files from dog to images, done
--- copying files from cat to images, done
--- copying files from bird to images, done
+-- 2000 files copied 
 -- saved images metadata (class to filenames to bounding boxes) as metadata.json
 ** all done
 
@@ -112,19 +108,23 @@ Now, a directory 'images' will contain the images randomly drawn from PASCAL VOC
 'metadata.json' will contain entries that describe bounding boxes for each image, of each
 selected class:
 
-{
-  "aeroplane": {
-    "2011_001624.jpg": {
-      "xmin": 115,
-      "ymin": 148,
-      "xmax": 353,
-      "ymax": 223
-    },
-    "2010_006032.jpg": {
-      "xmin": 1,
-      "ymin": 1,
-      "xmax": 500,
-      "ymax": 334
-    },
+[
+  {
+    "file": "2010_003132.jpg",
+    "class": "aeroplane",
+    "xmin": 2,
+    "ymin": 63,
+    "xmax": 500,
+    "ymax": 298
+  },
+  {
+    "file": "2011_002091.jpg",
+    "class": "aeroplane",
+    "xmin": 3,
+    "ymin": 64,
+    "xmax": 383,
+    "ymax": 245
+  },
 ...
+]
 
