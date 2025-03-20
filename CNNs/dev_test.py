@@ -1,14 +1,13 @@
 #!/usr/bin/python3
 
 import torch
-import torchvision
-import sys
+import torchvision.transforms.functional as F
 from torchvision import transforms, utils, tv_tensors
 from torchvision.transforms import v2 as transforms
 from torch.utils.data import Dataset, DataLoader
 from torchvision.io import read_image
+from torchvision.utils import draw_bounding_boxes
 import json
-import typing
 
 image_path = 'images/'
 metadata_json = 'metadata.json'
@@ -166,10 +165,19 @@ class BoundingBoxDataset(Dataset):
         return (curr_image, (curr_class, curr_bbox))
 
 a = BoundingBoxDataset('metadata.json', 'images', (333, 500))
+a.suppress_transforms = False
 train_dataloader = DataLoader(a, batch_size=64, shuffle=True)
 
-print(a[919])
-print(a[0])
+# SHOWER 
+
+img,(cl,bbox) = a[40]
+
+pilim = F.to_pil_image(img)
+boxes = draw_bounding_boxes(img,bbox,colors=['red'])
+F.to_pil_image(boxes).show()
+#show(boxes)
+
+#print(a[0])
 
 #for a in a:
 #    print(a)
