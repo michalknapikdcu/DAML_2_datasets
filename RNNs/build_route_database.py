@@ -58,8 +58,11 @@ def prepare_data(dataset_path, length_bottom_threshold, length_top_threshold, \
     # now, sample the same number of rows for each taxi id, to get approximately 
     # the requested number of rows in total, evenly distributed over ids
     group_sample_count = sample_row_count//active_taxi_count
-    print(db.groupby('TAXI_ID').sample(n=group_sample_count).count())
- 
+    print(f'** Sampling {group_sample_count} from each taxi id, '\
+          f'to get approximately {sample_row_count} rows.')
+    db = db.groupby('TAXI_ID').sample(n=group_sample_count).count()
+    print(f'** {len(db)} rows left.\n')
+
     return
     # compute distances between adjacent steps in routes using haversine formula
     def get_distances(polyline):
