@@ -7,7 +7,7 @@ import haversine
 import pandas as pd
 
 def prepare_data(dataset_path, length_bottom_threshold, length_top_threshold, \
-                 sample_row_count, minimal_ride_req):
+                 sample_row_count, minimal_ride_req, jump_threshold):
 
     # read and summarize data
     print('** Reading dataset...')
@@ -17,8 +17,9 @@ def prepare_data(dataset_path, length_bottom_threshold, length_top_threshold, \
     print(f'** Printing the header:\n{db.head()}\n')
 
     # drop columns decided irrelevant for the assignment
-    print('** Dropping columns: TRIP_ID CALL_TYPE ORIGIN_CALL ORIGIN_STAND') 
-    db.drop(labels=['TRIP_ID', 'CALL_TYPE', 'ORIGIN_CALL', 'ORIGIN_STAND'], axis=1, inplace=True)
+    print('** Dropping columns: TRIP_ID CALL_TYPE ORIGIN_CALL ORIGIN_STAND DAY_TYPE') 
+    db.drop(labels=['TRIP_ID', 'CALL_TYPE', 'ORIGIN_CALL', 'ORIGIN_STAND', 'DAY_TYPE'], \
+            axis=1, inplace=True)
 
     # drop missing (reported and other data)
     to_drop = db.MISSING_DATA == True
@@ -27,7 +28,7 @@ def prepare_data(dataset_path, length_bottom_threshold, length_top_threshold, \
     print(f'** Dropping the MISSING_DATA column.')
     db.drop('MISSING_DATA', axis=1, inplace=True)
     db.dropna(inplace=True)
-    print(f'** Dropping NA values, if any: {len(db)} rows left.\n')
+    print(f'** Dropping NA values, if any.\n{len(db)} rows left.\n')
 
     # prepare a series with total route lengths and drop from database the rows with 
     # routes too long or too short; 
@@ -60,44 +61,86 @@ def prepare_data(dataset_path, length_bottom_threshold, length_top_threshold, \
     group_sample_count = sample_row_count//active_taxi_count
     print(f'** Sampling {group_sample_count} from each taxi id, '\
           f'to get approximately {sample_row_count} rows.')
-    db = db.groupby('TAXI_ID').sample(n=group_sample_count).count()
+    db = db.groupby('TAXI_ID').sample(n=group_sample_count)
     print(f'** {len(db)} rows left.\n')
 
-    return
     # compute distances between adjacent steps in routes using haversine formula
     def get_distances(polyline):
-        print(list(zip(polyline[1:], polyline[:-1])))
-        print([haversine.haversine(p, n, unit=haversine.Unit.METERS) \
+        # polyline data entry in the dataset is a string of form '[[1.2, 3.4], [4.5, 6.89],]'
+        # and needs to be evaluated; this is costly, so done only after sampling
+        polyline = eval(polyline)
+        
+        return ([haversine.haversine(p, n, unit=haversine.Unit.METERS) \
                 for p,n in zip(polyline[1:], polyline[:-1])])
+    
+    # remove anomalous readings
+    print(f'** Removing rows with adjacent position readings further than {jump_threshold}.')
+    # get selector for the rows where an anomalous reading is detected
+    def are_distances_anomalous(polyline):
+        adj_distances = get_distances(polyline)
+        return any(distance > jump_threshold for distance in adj_distances)
 
-    adj_distances = db.apply(lambda row: get_distances(row.POLYLINE), axis=1)
-    print(adj_distances)
-   
-    # TODO - filter out bad routes based on haversine lengths
-    # TODO - normalize GPS data?
+    anomaly_discriminator = db.apply(lambda row: are_distances_anomalous(row.POLYLINE), axis=1)
+    anomalous_reading_count = sum(anomaly_discriminator)
+    print(f'** There are {anomalous_reading_count} such entries.')
+    db.drop(db.index[anomaly_discriminator], inplace=True)
+    print(f'** {len(db)} rows left.\n')
 
+    # max-min center the route data 
+    # get minimal and maximal values of GPS coordinates per row
+    print(f'** Applying min-max feature scaling to GPS coordinates.')
+    def get_boundary_gps_vals(polyline):
+        polyline = eval(polyline)
+        latitudes = [entry[0] for entry in polyline] 
+        longitudes = [entry[1] for entry in polyline] 
+        return min(latitudes), max(latitudes), min(longitudes), max(longitudes)
+
+    gps_maxima_per_row = db.apply(lambda row: get_boundary_gps_vals(row.POLYLINE), axis=1)
+    min_lat = gps_maxima_per_row.apply(lambda row: row[0]).min()
+    max_lat = gps_maxima_per_row.apply(lambda row: row[1]).max()
+    min_long = gps_maxima_per_row.apply(lambda row: row[2]).min()
+    max_long = gps_maxima_per_row.apply(lambda row: row[3]).max()
+    lat_span = max_lat - min_lat
+    long_span = max_long - min_long
+
+    def center_route(polyline):
+        polyline = eval(polyline)
+        centered_polyline = [[(entry[0] - min_lat)/lat_span, (entry[1] - min_long)/long_span] for entry in polyline]
+        return centered_polyline
+        
+    centered_entries = db.apply(lambda row: center_route(row.POLYLINE), axis=1)
+    db = db.assign(POLYLINE = centered_entries)
+    db.reset_index(drop=True, inplace=True)
+    print(f'** Printing the header of the transformed dataset:\n{db.head()}\n')
+
+    return db
+ 
 if __name__ == '__main__':
 
-    if len(sys.argv) < 7:
+    if len(sys.argv) < 8:
         print(f'Usage: {sys.argv[0]} dataset_path datapoints_to_sample '\
               'jump_threshold length_bottom_threshold length_top_threshold '\
-              'minimal_ride_req')
+              'minimal_ride_req target_file_name')
         sys.exit(1)
 
     dataset_path = sys.argv[1] # the path to the data file 
     sample_row_count = int(sys.argv[2]) # the approximate number of rows to produce 
-    jump_threshold = float(sys.argv[3]) # the maximal valid distance between two adjacent GPS coordinates
+    jump_threshold = float(sys.argv[3]) # the maximal valid distance (in meters) between two adjacent GPS  
     length_bottom_threshold = float(sys.argv[4]) # the minimal valid number of steps in a route 
     length_top_threshold = float(sys.argv[5]) # the maximal valid number of steps in a route 
     minimal_ride_req = int(sys.argv[6]) # the minimal number of rides required from a taxi
+    target_file_name = sys.argv[7] # the name of csv file to save prepared data
 
     print('**')
-    print(f'** Collecting {sample_row_count} rows with jump threshold: {jump_threshold}, ')
+    print(f'** Sampling {sample_row_count} rows with jump threshold: {jump_threshold}, ')
     print(f'** bottom and top length thresholds: {length_bottom_threshold}, {length_top_threshold}')
     print(f'** and at least {minimal_ride_req} rides required from a taxi.')
     print('**\n')
 
-    prepare_data(dataset_path, length_bottom_threshold, length_top_threshold, \
-                 sample_row_count, minimal_ride_req)
+    transformed_data = prepare_data(dataset_path, length_bottom_threshold, length_top_threshold, \
+                                    sample_row_count, minimal_ride_req, jump_threshold)
 
-    print('** all done')
+    transformed_data.to_csv(target_file_name)
+
+    print(f'** Written the transformed dataset to {target_file_name}. All done.')
+
