@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
-import os
-import random
+import json
 import haversine
 import pandas as pd
 
@@ -105,7 +104,8 @@ def prepare_data(dataset_path, length_bottom_threshold, length_top_threshold, \
 
     def center_route(polyline):
         polyline = eval(polyline)
-        centered_polyline = [[(entry[0] - min_lat)/lat_span, (entry[1] - min_long)/long_span] for entry in polyline]
+        centered_polyline = [[(entry[0] - min_lat)/lat_span, (entry[1] - min_long)/long_span] \
+                             for entry in polyline]
         return centered_polyline
         
     centered_entries = db.apply(lambda row: center_route(row.POLYLINE), axis=1)
@@ -113,7 +113,7 @@ def prepare_data(dataset_path, length_bottom_threshold, length_top_threshold, \
     db.reset_index(drop=True, inplace=True)
     print(f'** Printing the header of the transformed dataset:\n{db.head()}\n')
 
-    return db
+    return db, {"min_lat":min_lat, "max_lat":max_lat, "min_long":min_long, "max_long":max_long}
  
 if __name__ == '__main__':
 
@@ -137,10 +137,15 @@ if __name__ == '__main__':
     print(f'** and at least {minimal_ride_req} rides required from a taxi.')
     print('**\n')
 
-    transformed_data = prepare_data(dataset_path, length_bottom_threshold, length_top_threshold, \
-                                    sample_row_count, minimal_ride_req, jump_threshold)
+    transformed_data, metadata = prepare_data(dataset_path, length_bottom_threshold, \
+                                              length_top_threshold, sample_row_count, \
+                                              minimal_ride_req, jump_threshold)
 
-    transformed_data.to_csv(target_file_name)
+    # save the data and metadata
+    transformed_data.to_csv(f'{target_file_name}.csv')
+    with open(f'{target_file_name}_meta.json', 'w') as jf:
+        json.dump(metadata, jf)
 
-    print(f'** Written the transformed dataset to {target_file_name}. All done.')
+    print(f'** Written the transformed dataset to {target_file_name}.csv and ' \
+          f'metadata to {target_file_name}_meta.json. All done.')
 
